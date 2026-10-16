@@ -8,6 +8,7 @@
 - **Default = 1** if `mis_status = 'CHGOFF'` OR a charge-off date is present
 - **Default = 0** if `mis_status = 'P I F'` and no charge-off date
 - Loans with missing `mis_status` (1,997 loans, 0.22%) are excluded
+- Of these 1,997 loans, 261 have a charge-off date. They are excluded together with the rest of the group because the status field is incomplete. Counting them as defaults would change the default rate by less than 0.1 pp in each sample.
 - Rationale: 4,927 loans are marked paid in full but carry a charge-off date. Consistent with Basel practice, a default that is later cured is still counted as a default ("closed default").
 - Note: the target measures charge-off over the full life of the loan, not default within 12 months. Model output is therefore not directly comparable to a Basel 12-month PD.
 
@@ -51,3 +52,7 @@ All amount, term, employee and NAICS values match the expected format (0 errors)
 These variables are expected to show population shift between development and monitoring periods because of data collection changes, not changes in credit risk:
 - `revlinecr`: share of Unknown codes changes over time
 - `naics`: Unknown sector exists almost only in the development period
+
+## 6. Replication in SAS
+- The raw data import, all 11 data quality checks and the clean modelling table were rebuilt in SAS as a second implementation (`sas/` folder).
+- All results match the PostgreSQL figures in this log: 899,164 raw rows, 825,294 loans in the modelling population, 435,278 development loans (6.92% default rate) and 390,016 monitoring loans (30.10% default rate).
