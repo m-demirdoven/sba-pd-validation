@@ -56,3 +56,42 @@ These variables are expected to show population shift between development and mo
 ## 6. Replication in SAS
 - The raw data import, all 11 data quality checks and the clean modelling table were rebuilt in SAS as a second implementation (`sas/` folder).
 - All results match the PostgreSQL figures in this log: 899,164 raw rows, 825,294 loans in the modelling population, 435,278 development loans (6.92% default rate) and 390,016 monitoring loans (30.10% default rate).
+
+## 7. Univariate analysis (development sample only)
+Decisions in this section use the development sample only, so the out-of-time test stays clean.
+
+### Method: year-adjusted risk index
+The default rate rises from about 2% (1993) to 12% (2002) within the development sample. Any variable whose mix changes over time picks up this trend and can look like a risk driver when it is not. Each category is therefore compared with loans approved in the same year:
+- Risk index = observed defaults / expected defaults, where expected = default rate of all development loans approved in the same year
+- Index above 1 means riskier than the average loan of the same year
+
+### Decisions
+| Variable | Finding | Decision |
+|---|---|---|
+| `revolving` (`revlinecr`) | Pooled default rate: N 4.8%, Unknown 10.3%, Y 10.8%. Within each year Y and N are almost equal (1999: 8.8% vs 8.3%, 2000: 10.2% vs 10.7%). The pooled gap comes from Y loans being concentrated in 2000-2002. Unknown is 1.0 to 2.2 pp above N within year, but it is a recording code whose share falls from 60% to 20%. | **Excluded.** Replaces the decision in section 4. |
+| `business_type` (`newexist`) | New is riskier than Existing in all 14 years (1999: 12.8% vs 8.9%). | Keep. Unknown (673 loans) merged with Existing. |
+| `lowdoc` | The program starts in 1994. From then Y is riskier than N in every year, and the gap grows from 0.3 to 3.5 pp. | Keep. Unknown (1,924 loans) merged with N. |
+| `sector` (`naics`) | Year adjustment changes the ranking: food services 11.6% raw but index 1.07, agriculture 7.2% raw but index 1.19, Unknown 5.8% raw but index 1.06. | Four groups by index (see below). Unknown joins S2. |
+| `state` | Index from 0.58 (MT) to 1.77 (KY, AR). 9 development loans have no state. | Four groups by index (see below). Missing state joins T3. |
+
+### Sector groups (2-digit NAICS)
+| Group | Codes | Loans | Default rate | Index |
+|---|---|---|---|---|
+| S1 high | 45 | 18,357 | 11.07% | 1.51 |
+| S2 above average | 11, 31, 32, 44, 48, 49, 51, 53, 71, 72, Unknown | 270,915 | 6.89% | 1.07 |
+| S3 below average | 23, 33, 42, 56, 61, 81 | 97,640 | 7.27% | 0.93 |
+| S4 low | 21, 22, 52, 54, 55, 62, 92 | 48,366 | 4.81% | 0.63 |
+
+S2 has a lower raw default rate than S3 because it contains the Unknown loans from early, low-default years. The model must control for approval year, otherwise it will learn the raw order.
+
+### State groups
+Cut points at index 1.25, 1.00 and 0.80.
+
+| Group | States | Loans | Default rate | Index |
+|---|---|---|---|---|
+| T1 high | AL, AR, IL, KY, LA, MS, OK, SC, TN, TX, WV | 85,753 | 9.16% | 1.40 |
+| T2 above average | CO, DE, FL, GA, IN, KS, MI, MO, NC, NM, NV, NY, OH | 122,000 | 7.86% | 1.14 |
+| T3 below average | AZ, CT, IA, ID, MD, ME, ND, NE, NJ, OR, PA, VA, VT, WA, WI, missing | 105,126 | 6.42% | 0.91 |
+| T4 low | AK, CA, DC, HI, MA, MN, MT, NH, RI, SD, UT, WY | 122,399 | 4.83% | 0.68 |
+
+State risk may follow regional economic cycles, so the stability of this ranking is tested on the monitoring sample.
