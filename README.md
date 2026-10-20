@@ -4,7 +4,7 @@ Portfolio project on U.S. Small Business Administration (SBA) 7(a) loan data. A 
 
 
 
-\*\*Validation report for management (in Turkish, PDF):\*\* \[docs/validasyon\_raporu.pdf](docs/validasyon\_raporu.pdf). Overall rating, findings register and recommendations in a short management format.
+\*\*Validation report for management (in Turkish, PDF):\*\* \[validasyon_raporu.pdf](validasyon_raporu.pdf). Overall rating, findings register and recommendations in a short management format.
 
 ## Key findings
 
