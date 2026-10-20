@@ -95,3 +95,46 @@ Cut points at index 1.25, 1.00 and 0.80.
 | T4 low | AK, CA, DC, HI, MA, MN, MT, NH, RI, SD, UT, WY | 122,399 | 4.83% | 0.68 |
 
 State risk may follow regional economic cycles, so the stability of this ranking is tested on the monitoring sample.
+
+## 8. Model scope: loans with a 100% guarantee
+- 39,150 development loans (9.0% of the cleaned development sample) have an SBA guarantee equal to the approved amount. They show 4 defaults (0.01%), in every approval year from 1989 to 2002. The 19,784 such loans in the out-of-time sample show practically none, while 31.7% of the other loans default.
+- This is treated as a strong data quality warning, not as proof that the default flag is wrong. A possible cause: the SBA repays the full balance when such a loan fails, so the lender records it as paid in full.
+- **Decision:** excluded from the model scope as a precaution. The clean table is left unchanged, so the PostgreSQL reconciliation still holds. The filter is applied in `sas/05_model_table.sas`.
+- In-scope population: 396,128 development loans (default rate 7.60%) and 370,232 out-of-time loans.
+- Sensitivity (`sas/09_scope_sensitivity.sas`): keeping these loans raises Gini by about 0.01 in both samples. No conclusion changes.
+
+## 9. Numeric variables (in-scope development sample)
+Method: ten groups of equal size per variable, year-adjusted risk index (`sas/04_numeric_bins.sas`).
+
+| Variable | Finding | Decision |
+|---|---|---|
+| `loan_amount` | After the scope exclusion the index is flat (0.91 to 1.06). Before it, loans above 170,000 looked about 10% safer. That pattern came from the fully guaranteed loans. | **Excluded.** |
+| `guarantee_share` | Standard shares (50%, 75%, 80%, 90%) have an index of 0.92 to 1.02. Some non-standard shares look riskier (1.21 to 1.40) but cover about 3% of loans. The share is set by SBA program rules. | **Excluded.** No consistent relation, and no business rationale for a "non-standard share" flag. |
+| `term_months` | 85% of non-defaulted loans have a whole-year term against 9% of defaulted loans. Index from 0.03 (120 months) to 3.87 (1-46 months). | **Excluded.** See section 12. |
+| `n_employees` | Index 1.03 (1-6), 0.97 (7-25), 0.91 (26 and more). | Kept in three groups, merged to two in the model (section 10). Missing (3 loans) joins the 1-6 group. |
+
+## 10. Final model
+- Logistic regression on the in-scope development sample with approval year as a control variable (`sas/06_model.sas`). A comparison model without year puts sector S2 below S3 (0.39 vs 0.49) and makes the employee effect three times larger, which confirms the year bias.
+- Changes after the first fit:
+  - `lowdoc` **dropped**: its coefficient turns negative (-0.07) once the other drivers are in, against the univariate result.
+  - Employee groups 1-6 and 7-25 **merged**: coefficients 0.081 and 0.067.
+- Final drivers: business type, sector group, state group, employees (up to 25 / 26 and more). All coefficients are positive, ordered as expected and significant at 1%.
+- Scoring (`sas/07_score.sas`): sum of the driver coefficients, year effects left out. The PD level is set by an intercept fitted on the development sample with the score as offset (-3.519), so the average PD equals 7.60% (through-the-cycle).
+- Group indices were rechecked on the in-scope population: the order holds for every variable.
+
+## 11. Validation results
+Full tables are in the README.
+- Discrimination: Gini 0.168 (95% CI 0.162-0.175) in development and 0.069 (0.065-0.073) out of time, z = 25.1. By vintage: 0.08 to 0.23 in development, 0.11 in 2003, falling to 0.00-0.01 in 2007-2008 (intervals include zero).
+- Rank stability out of time: state order broken, business type reversed, sector order kept but compressed, employee effect stronger.
+- Calibration: development bands within a ratio of 0.8-1.2 except the lowest band (1.26). By year the ratio moves from 0.29 to 1.84, as expected for a through-the-cycle model. Out of time the ratio is 2.3 to 6.2 by year and 2.8 to 7.5 by band.
+- PSI: score 0.036, business type 0.000, employees 0.056, state 0.013, sector 0.244 (expected, NAICS coding change).
+- Conclusion: not fit for use. The population is stable but the relationships are not.
+- Known limitation: the data has closed loans only, which overstates recent default rates. 25-year loans are 9.9% of in-scope development loans but 2.7% of out-of-time loans. 2003-2004 are the least affected vintages.
+
+## 12. Term field
+Tests in `sas/08_term_check.sas`.
+- Raw data: 86.6% of paid-in-full loans have a whole-year term against 10.1% of charged-off loans. The pattern is not caused by the cleaning.
+- Hypothesis "term = months until charge-off" rejected: only 2.4% of charged-off loans match within one month (2.6% from disbursement). Charge-off can come years after default, so this does not rule out every kind of change.
+- Plausibility: in the 2007 vintage, 84-month loans default at 1.1%, 85-119-month loans at 63.7% and 61-77-month loans at 84.8%. Loans with term 0 default at 86% (development) and 98.5% (out-of-time).
+- Challenger (final model + term): Gini 0.706 in development and 0.766 out of time. Loans of 1-46 months have about 240 times the default odds of 120-month loans. The first fit failed (SAS: validity questionable) and was fixed by merging term 0 into the shortest group.
+- **Decision:** term stays out of the model until the data owner confirms how it is recorded.

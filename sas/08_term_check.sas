@@ -24,9 +24,9 @@ data work.term_test;
   set sba.raw_loans;
   where mis_status = 'CHGOFF';
   term_n      = input(term, 8.);
-  appr_dt     = input(approvaldate, anydtdte11.);
-  disb_dt     = input(disbursementdate, anydtdte11.);
-  chgoff_dt   = input(chgoffdate, anydtdte11.);
+  appr_dt     = input(approvaldate, ?? anydtdte11.);
+  disb_dt     = input(disbursementdate, ?? anydtdte11.);
+  chgoff_dt   = input(chgoffdate, ?? anydtdte11.);
   m_from_appr = intck('month', appr_dt, chgoff_dt);
   m_from_disb = intck('month', disb_dt, chgoff_dt);
   /* SAS treats a missing value as smaller than any number,
@@ -53,8 +53,9 @@ run;
 
 proc format;
   value term_grp
-    .         = 'Missing'
-    low-46    = '001-046'
+      /* Term 0 (missing) merged into the shortest group: the small separate
+       group made the challenger fit fail (SAS: validity questionable) */
+    ., low-46 = '001-046'
     46<-60    = '047-060'
     60<-77    = '061-077'
     77<-83    = '078-083'
